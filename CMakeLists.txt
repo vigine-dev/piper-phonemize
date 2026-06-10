@@ -100,12 +100,26 @@ endif()
 if(NOT DEFINED ESPEAK_NG_DIR)
     set(ESPEAK_NG_DIR "${CMAKE_CURRENT_BINARY_DIR}/ei")
 
+    # Forward the target architecture (and the CMake 4 policy floor) into the
+    # sub-build, otherwise a cross build silently produces host-arch dylibs.
+    set(ESPEAK_NG_FORWARD_ARGS "")
+    if(CMAKE_OSX_ARCHITECTURES)
+        list(APPEND ESPEAK_NG_FORWARD_ARGS -DCMAKE_OSX_ARCHITECTURES=${CMAKE_OSX_ARCHITECTURES})
+    endif()
+    if(CMAKE_OSX_DEPLOYMENT_TARGET)
+        list(APPEND ESPEAK_NG_FORWARD_ARGS -DCMAKE_OSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET})
+    endif()
+    if(CMAKE_POLICY_VERSION_MINIMUM)
+        list(APPEND ESPEAK_NG_FORWARD_ARGS -DCMAKE_POLICY_VERSION_MINIMUM=${CMAKE_POLICY_VERSION_MINIMUM})
+    endif()
+
     include(ExternalProject)
     ExternalProject_Add(
         espeak_ng_external
         PREFIX "${CMAKE_CURRENT_BINARY_DIR}/e"
         URL "https://github.com/rhasspy/espeak-ng/archive/0f65aa301e0d6bae5e172cc74197d32a6182200f.zip"
         CMAKE_ARGS -DCMAKE_INSTALL_PREFIX:PATH=${ESPEAK_NG_DIR}
+        CMAKE_ARGS ${ESPEAK_NG_FORWARD_ARGS}
         CMAKE_ARGS -DUSE_ASYNC:BOOL=OFF
         CMAKE_ARGS -DBUILD_SHARED_LIBS:BOOL=ON
         CMAKE_ARGS -DUSE_MBROLA:BOOL=OFF

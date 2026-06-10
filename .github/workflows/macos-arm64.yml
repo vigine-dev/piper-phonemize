@@ -1,0 +1,59 @@
+name: macos-arm64
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to publish the bundle under"
+        required: false
+        default: "2023.11.14-arm64"
+
+permissions:
+  contents: write
+
+jobs:
+  build_macos_arm64:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: configure
+        run: |
+          cmake -Bbuild \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_OSX_ARCHITECTURES=arm64 \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0 \
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+            -DCMAKE_INSTALL_PREFIX=_install/piper-phonemize
+      - name: build
+        run: cmake --build build --config Release -j3
+      - name: install
+        run: cmake --install build
+      - name: verify every dylib is arm64
+        run: |
+          status=0
+          for lib in _install/piper-phonemize/lib/*.dylib; do
+            if [ ! -L "$lib" ]; then
+              archs="$(lipo -archs "$lib")"
+              echo "$lib: $archs"
+              if [ "$archs" != "arm64" ]; then
+                status=1
+              fi
+            fi
+          done
+          exit $status
+      - name: package
+        run: |
+          rm -rf _install/piper-phonemize/lib/*.dSYM
+          cd _install && \
+          COPYFILE_DISABLE=1 tar -czf piper-phonemize_macos_aarch64.tar.gz piper-phonemize/
+      - name: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${{ inputs.tag }}"
+          gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+            gh release create "$tag" --repo "$GITHUB_REPOSITORY" \
+              --title "macOS arm64 bundle" \
+              --notes "Genuine arm64 build of the 2023.11.14 bundle: the upstream macos_aarch64 asset contains x86_64 dylibs because the release workflow built both mac legs on an x86_64 runner. Built on a macos-14 arm64 runner; every dylib in lib/ is lipo-verified arm64."
+          gh release upload "$tag" _install/piper-phonemize_macos_aarch64.tar.gz \
+            --repo "$GITHUB_REPOSITORY" --clobber
