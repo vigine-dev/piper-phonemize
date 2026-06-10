@@ -55,5 +55,14 @@ jobs:
             gh release create "$tag" --repo "$GITHUB_REPOSITORY" \
               --title "macOS arm64 bundle" \
               --notes "Genuine arm64 build of the 2023.11.14 bundle: the upstream macos_aarch64 asset contains x86_64 dylibs because the release workflow built both mac legs on an x86_64 runner. Built on a macos-14 arm64 runner; every dylib in lib/ is lipo-verified arm64."
+          # Never replace an existing asset: consumers pin its sha256, and a
+          # rebuild is never byte-identical. Publishing fresh bytes needs a
+          # new tag (pass tag=... on dispatch) plus a consumer-side re-pin.
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" \
+               --json assets -q '.assets[].name' | \
+               grep -qx "piper-phonemize_macos_aarch64.tar.gz"; then
+            echo "asset already published under $tag; refusing to overwrite" >&2
+            exit 1
+          fi
           gh release upload "$tag" _install/piper-phonemize_macos_aarch64.tar.gz \
-            --repo "$GITHUB_REPOSITORY" --clobber
+            --repo "$GITHUB_REPOSITORY"

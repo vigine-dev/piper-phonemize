@@ -104,7 +104,10 @@ if(NOT DEFINED ESPEAK_NG_DIR)
     # sub-build, otherwise a cross build silently produces host-arch dylibs.
     set(ESPEAK_NG_FORWARD_ARGS "")
     if(CMAKE_OSX_ARCHITECTURES)
-        list(APPEND ESPEAK_NG_FORWARD_ARGS -DCMAKE_OSX_ARCHITECTURES=${CMAKE_OSX_ARCHITECTURES})
+        # A multi-arch list ("arm64;x86_64") must survive as ONE argument of
+        # the sub-configure; LIST_SEPARATOR below maps | back to ;.
+        string(REPLACE ";" "|" _espeak_osx_archs "${CMAKE_OSX_ARCHITECTURES}")
+        list(APPEND ESPEAK_NG_FORWARD_ARGS -DCMAKE_OSX_ARCHITECTURES=${_espeak_osx_archs})
     endif()
     if(CMAKE_OSX_DEPLOYMENT_TARGET)
         list(APPEND ESPEAK_NG_FORWARD_ARGS -DCMAKE_OSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET})
@@ -118,6 +121,7 @@ if(NOT DEFINED ESPEAK_NG_DIR)
         espeak_ng_external
         PREFIX "${CMAKE_CURRENT_BINARY_DIR}/e"
         URL "https://github.com/rhasspy/espeak-ng/archive/0f65aa301e0d6bae5e172cc74197d32a6182200f.zip"
+        LIST_SEPARATOR "|"
         CMAKE_ARGS -DCMAKE_INSTALL_PREFIX:PATH=${ESPEAK_NG_DIR}
         CMAKE_ARGS ${ESPEAK_NG_FORWARD_ARGS}
         CMAKE_ARGS -DUSE_ASYNC:BOOL=OFF
